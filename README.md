@@ -5,6 +5,7 @@
 
 #### supports:
 - http code 404, 405, 505, 401, 200, 400
+- simple registration
 - basic auth
 - multithreading
 - interaction with the database
