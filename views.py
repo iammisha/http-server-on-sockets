@@ -6,13 +6,14 @@ from utils import get_body, parse_parameters, check_credentials
 def basic_auth_decorator(view):
     def wrapper(*args, **kwargs):
         headers = kwargs['headers']
+        response_body = get_body('index.html')
         if 'Authorization' not in headers:
-            return "HTTP/1.1 401 Unauthorized", ['WWW-Authenticate: Basic realm="Log in"'], ''
+            return "HTTP/1.1 401 Unauthorized", ['WWW-Authenticate: Basic realm="Log in"'], response_body
         else:
             try:
                 credentials = base64.b64decode(headers['Authorization'].split(' ')[1]).decode("utf-8").split(':')
                 if not check_credentials(credentials):
-                    return "HTTP/1.1 401 Unauthorized", ['WWW-Authenticate: Basic realm="Log in"'], ''
+                    return "HTTP/1.1 401 Unauthorized", ['WWW-Authenticate: Basic realm="Log in"'], response_body
             except Exception as error:
                 return "HTTP/1.1 400 Bad Request", ['WWW-Authenticate: Basic realm="Log in "'], ''
         return view(*args, **kwargs)
