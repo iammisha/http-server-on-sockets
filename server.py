@@ -30,37 +30,24 @@ class ThreadingHttpServer:
         self.sock.listen()
 
     @staticmethod
-    def parsing_request(data):
-        request_line_and_headers, body = data.split('\r\n\r\n')
-        parsed = request_line_and_headers.split('\r\n')
-        request_line = parsed[0]
-        headers = parsed[1:] if len(parsed) > 1 else []
+    def parsing_request(http):
+        request_line, *headers, _, body = http.split('\r\n')
         return request_line, headers, body
 
     @staticmethod
     def parse_request_line(request_line):
-        parsed = request_line.split(' ')
-        method = parsed[0]
-        url = parsed[1]
-        version = parsed[2]
-        return method, url, version
+        method, url_and_querystring, version = request_line.split(' ')
+        return method, url_and_querystring, version
 
     @staticmethod
     def parse_url_and_querystring(url_and_querystring):
-        parsed = url_and_querystring.split('?')
-        url = parsed[0]
-        querystring = '?'.join(parsed[1:]) if len(parsed) > 1 else ''
+        url, *querystring = url_and_querystring.split('?', maxsplit=1)
+        querystring = ''.join(querystring)
         return url, querystring
 
     @staticmethod
     def headers_to_dict(headers):
-        headers_dict = dict()
-        for header in headers:
-            h = header.split(': ')
-            if len(h) > 1 and h[0]:
-                headers_dict.update({h[0]: ': '.join(h[1:])})
-            else:
-                raise ValueError
+        headers_dict = dict(line.split(': ', maxsplit=1) for line in headers)
         return headers_dict
 
     @staticmethod
@@ -69,9 +56,9 @@ class ThreadingHttpServer:
         headers = list()
         return headers_dict
 
-    def _generate_response(self, data):
+    def _generate_response(self, http_request):
         try:
-            request_line, headers, body = self.parsing_request(data)
+            request_line, headers, body = self.parsing_request(http_request)
             method, url_and_querystring, version = self.parse_request_line(request_line)
             url, querystring = self.parse_url_and_querystring(url_and_querystring)
             headers = self.headers_to_dict(headers)
@@ -91,11 +78,23 @@ class ThreadingHttpServer:
         return self.urls[url](method=method, querystring=querystring, headers=headers, body=body)
 
     def connection_handler(self, client_connection):
-        request = client_connection.recv(1024).decode()
-        response_line, response_headers, response_body = self._generate_response(request)
+        http_request = client_connection.recv(1024).decode()
+        response_line, response_headers, response_body = self._generate_response(http_request)
+        # process_response(response)
         response = '{}\r\n{}\r\n\r\n{}'.format(response_line, '\r\n'.join(response_headers), response_body)
         client_connection.sendall(bytes(response, "utf8"))
         client_connection.close()
+
+    # @staticmethod
+    # def process_response(response):
+    #     return (
+    #         'HTTP/1.1 200\r\n'
+    #         f'Content-Length: {len(response)}\r\n'
+    #         'Content-Type: text/html\r\n'
+    #         '\r\n'
+    #         f'{response}'
+    #         '\r\n'
+    #     )
 
     def run(self):
         while True:
